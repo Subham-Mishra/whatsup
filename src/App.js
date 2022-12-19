@@ -1,14 +1,15 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import moment from "moment";
 import { v4 as uuid } from "uuid";
 import { db } from "./utils/firebase";
-import { set, remove, onValue, ref, update } from "firebase/database";
-import Button from "./components/Button";
-import TextInput from "./components/TextInput";
+import { set, onValue, ref, update } from "firebase/database";
+import LoginView from "./components/LoginView";
+import ActiveUser from "./components/ActiveUser";
+import UserInfo from "./components/UserInfo";
+import ChatSection from "./components/ChatSection";
 
 const App = () => {
-  const { register, handleSubmit, setValue } = useForm();
+  const { setValue } = useForm();
 
   const [user, setUser] = useState({
     user_id: "",
@@ -68,7 +69,6 @@ const App = () => {
           ]);
         }
         const { msgid } = message;
-
         if (message.to === user?.user_id) {
           if (message.from === chatWith) {
             update(
@@ -175,12 +175,12 @@ const App = () => {
         console.log("Error:", err);
       });
   };
+
   const sendMessage = ({ message_to_send }) => {
     if (!message_to_send || !chatWith) {
       console.log("Message or Receiver info missing");
       return;
     }
-
     const uid = uuid();
     update(ref(db, `/messages/${[user?.user_id, chatWith].sort().join("")}`), {
       [uid]: {
@@ -192,8 +192,6 @@ const App = () => {
         timestamp: new Date(),
       },
     });
-
-    setValue("message_to_send", "");
   };
 
   return (
@@ -201,94 +199,23 @@ const App = () => {
       {user.is_online ? (
         <div id="user_view">
           <div className="flex gap-2 w-screen h-screen p-16">
-            <div className="w-1/5 bg-red-500">
-              <div className="flex justify-between ">
-                <div className="text-sm font-medium text-gray-700">
-                  Hi {user.user_id}
-                </div>
-                <Button text="Log out" onClick={logoutUser} />
-              </div>
-              <div>
-                Active users:
-                <div>
-                  {users.map(
-                    (activeUser) =>
-                      activeUser?.user_id !== user?.user_id && (
-                        <div
-                          onClick={() => setChatWith(activeUser?.user_id)}
-                          key={activeUser?.user_id}
-                          className="py-2 pl-6 cursor-pointer flex gap-2 items-center"
-                        >
-                          - {activeUser?.user_id}{" "}
-                          {activeUser?.is_online ? (
-                            <div className="h-4 w-4 rounded-full bg-green-600" />
-                          ) : (
-                            <div>
-                              Last Online:{" "}
-                              {moment(
-                                Date.parse(activeUser?.last_online) ||
-                                  new Date()
-                              ).fromNow()}
-                            </div>
-                          )}
-                        </div>
-                      )
-                  )}
-                </div>
-              </div>
+            <div className="w-3/12 ">
+              <UserInfo
+                user={user}
+                logoutUser={logoutUser}
+                setChatWith={setChatWith}
+              />
+              <ActiveUser users={users} user={user} setChatWith={setChatWith} />
             </div>
-            {chatWith ? (
-              <div className="w-4/5 bg-blue-400 relative">
-                Chatting With {chatWith}
-                <div>
-                  {sortedMessagesToDisplay?.map((eachMsg) => {
-                    return (
-                      <p
-                        className={
-                          eachMsg?.is_received ? "" : "text-end" + " w-full"
-                        }
-                      >
-                        {eachMsg?.content} -
-                        <spam>{eachMsg?.status === "sent" && "Sent"}</spam>
-                        <spam>
-                          {eachMsg?.status === "delivered" && "Delivered"}
-                        </spam>
-                        <spam>{eachMsg?.status === "read" && "Read"}</spam>
-                      </p>
-                    );
-                  })}
-                </div>
-                <div className="absolute bottom-0 w-full p-2">
-                  <form
-                    onSubmit={handleSubmit(sendMessage)}
-                    className="flex gap-2 items-end w-full"
-                  >
-                    <TextInput
-                      id="message_to_send"
-                      label="Enter Message"
-                      register={register}
-                    />
-                    <Button type="submit" text="Send" />
-                  </form>
-                </div>
-              </div>
-            ) : (
-              <div className="w-4/5 bg-blue-400 relative" />
-            )}
+            <ChatSection
+              sendMessage={sendMessage}
+              chatWith={chatWith}
+              sortedMessagesToDisplay={sortedMessagesToDisplay}
+            />
           </div>
         </div>
       ) : (
-        <div id="login_view">
-          <form onSubmit={handleSubmit(loginUser)} className="grid gap-8">
-            <TextInput
-              id="user_id"
-              label="Enter user-name"
-              register={register}
-              required
-            />
-            <Button type="submit" text="Log in" />
-          </form>
-        </div>
+        <LoginView loginUser={loginUser} />
       )}
     </div>
   );
