@@ -9,6 +9,7 @@ const TextInput = ({ label, id, type, register, ...input_props }) => {
           type={type || "text"} 
           name={id} 
           id={id}
+          autocomplete="off"
           className="block w-full px-2 py-1 text-sm font-normal text-gray-700 bg-white bg-clip-padding border border-solid border-gray-300 rounded-md transition ease-in-out m-0 focus:text-gray-700 focus:bg-white focus:border-blue-600 focus:outline-none"
           {...register(id)}
           {...input_props} />
