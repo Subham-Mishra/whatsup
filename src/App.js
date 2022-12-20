@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { v4 as uuid } from "uuid";
 import { db } from "./utils/firebase";
-import { set, onValue, ref, update } from "firebase/database";
+import {
+  set,
+  onValue,
+  ref,
+  update,
+  push,
+  query,
+  orderByChild,
+} from "firebase/database";
 import LoginView from "./components/LoginView";
 import ActiveUser from "./components/ActiveUser";
 import UserInfo from "./components/UserInfo";
@@ -22,18 +30,18 @@ const App = () => {
   const [messagesToDisplay, setMessagesToDisplay] = useState([]);
   const [users, setUsers] = useState([]);
   const [chatWith, setChatWith] = useState();
-  const [sortedMessagesToDisplay, setSortedMessagesToDisplay] =
-    useState(messagesToDisplay);
+  // const [sortedMessagesToDisplay, setSortedMessagesToDisplay] =
+  //   useState(messagesToDisplay);
   const getUserInfo = (id) =>
     users.find((thisUser) => thisUser?.user_id === id);
 
-  useEffect(() => {
-    setSortedMessagesToDisplay(
-      [...messagesToDisplay].sort(
-        (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)
-      )
-    );
-  }, [messagesToDisplay]);
+  // useEffect(() => {
+  //   setSortedMessagesToDisplay(
+  //     [...messagesToDisplay]
+  //   );
+  // }, [messagesToDisplay]);
+
+  // console.log({ messagesToDisplay, sortedMessagesToDisplay });
 
   useEffect(() => {
     onValue(ref(db), (snapshot) => {
@@ -57,7 +65,7 @@ const App = () => {
   useEffect(() => {
     setMessagesToDisplay([]);
     Object.keys(currUserMessages).forEach((msgObj) => {
-      Object.values(currUserMessages[msgObj]).map((message) => {
+      Object.entries(currUserMessages[msgObj]).forEach(([key, message]) => {
         const msgReceived =
           message.from === chatWith && message.to === user?.user_id;
         const msgSent =
@@ -68,13 +76,12 @@ const App = () => {
             { ...message, is_received: msgReceived },
           ]);
         }
-        const { msgid } = message;
         if (message.to === user?.user_id) {
           if (message.from === chatWith) {
             update(
               ref(db, `/messages/${[user?.user_id, chatWith].sort().join("")}`),
               {
-                [msgid]: {
+                [key]: {
                   ...message,
                   status: "read",
                 },
@@ -92,7 +99,7 @@ const App = () => {
                 `/messages/${[message?.to, message?.from].sort().join("")}`
               ),
               {
-                [msgid]: {
+                [key]: {
                   ...message,
                   status: "delivered",
                 },
@@ -182,15 +189,20 @@ const App = () => {
       return;
     }
     const uid = uuid();
-    update(ref(db, `/messages/${[user?.user_id, chatWith].sort().join("")}`), {
-      [uid]: {
-        msgid: uid,
-        to: chatWith,
-        from: user?.user_id,
-        content: message_to_send,
-        status: "sent",
-        timestamp: new Date(),
-      },
+    const newMessageRef = push(
+      query(
+        ref(db, `/messages/${[user?.user_id, chatWith].sort().join("")}`),
+        orderByChild("timestamp")
+      )
+    );
+
+    set(newMessageRef, {
+      msgid: uid,
+      to: chatWith,
+      from: user?.user_id,
+      content: message_to_send,
+      status: "sent",
+      timestamp: new Date(),
     });
   };
 
@@ -210,7 +222,7 @@ const App = () => {
             <ChatSection
               sendMessage={sendMessage}
               chatWith={chatWith}
-              sortedMessagesToDisplay={sortedMessagesToDisplay}
+              messagesToDisplay={messagesToDisplay}
             />
           </div>
         </div>

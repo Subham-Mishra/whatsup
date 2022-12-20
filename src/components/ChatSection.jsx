@@ -3,7 +3,7 @@ import SendMessage from "../components/SendMessage";
 import { capitalizeFirstLetter } from "../utils/common"
 import { RiCheckFill, RiCheckDoubleFill } from "react-icons/ri";
 
-const ChatSection = ({ chatWith, sortedMessagesToDisplay, sendMessage }) => {
+const ChatSection = ({ chatWith, messagesToDisplay, sendMessage }) => {
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -12,7 +12,7 @@ const ChatSection = ({ chatWith, sortedMessagesToDisplay, sendMessage }) => {
 
   useEffect(() => {
     scrollToBottom()
-  }, [sortedMessagesToDisplay]);
+  }, [messagesToDisplay]);
 
   return (
     <>
@@ -33,7 +33,7 @@ const ChatSection = ({ chatWith, sortedMessagesToDisplay, sendMessage }) => {
                   Messages to this chat and calls are now secured with end-to-end encryption. Tap for more info.
                 </p>
               </div>
-              {sortedMessagesToDisplay?.map((eachMsg) => {
+              {messagesToDisplay?.map((eachMsg) => {
                 return (
                   <div className={eachMsg?.is_received ? "flex mb-2" : "flex mb-2 justify-end"}>
                     <div className="rounded py-2 px-3" style={{ backgroundColor: "#F2F2F2" }}>
