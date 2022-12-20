@@ -7,8 +7,7 @@ const LoginView = ({loginUser}) => {
   const { register, handleSubmit } = useForm();
 
   return (
-    <div id="login_view">
-      <form onSubmit={handleSubmit(loginUser)} className="grid gap-8">
+      <form  id="login_view" onSubmit={handleSubmit(loginUser)} className="grid gap-8 place-content-center h-screen">
         <TextInput
           id="user_id"
           label="Enter user-name"
@@ -17,7 +16,6 @@ const LoginView = ({loginUser}) => {
         />
         <Button type="submit" text="Log in" />
       </form>
-    </div>
   )
 }
 

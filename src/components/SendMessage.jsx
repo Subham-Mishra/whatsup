@@ -12,7 +12,6 @@ const SendMessage = ({ sendMessage }) => {
     setValue("message_to_send", "");
   }
   return (
-    <div className='w-full'>
       <form
         onSubmit={handleSubmit(sendMessages)}
         className="flex gap-2 items-end w-full"
@@ -23,7 +22,6 @@ const SendMessage = ({ sendMessage }) => {
         />
         <Button type="submit" text="Send" />
       </form>
-    </div>
   )
 }
 

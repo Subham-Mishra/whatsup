@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { v4 as uuid } from "uuid";
 import { db } from "./utils/firebase";
 import {
   set,
@@ -11,14 +9,13 @@ import {
   query,
   orderByChild,
 } from "firebase/database";
+import { findObjectByID } from "./utils/common";
 import LoginView from "./components/LoginView";
 import ActiveUser from "./components/ActiveUser";
 import UserInfo from "./components/UserInfo";
 import ChatSection from "./components/ChatSection";
 
 const App = () => {
-  const { setValue } = useForm();
-
   const [user, setUser] = useState({
     user_id: "",
     is_online: false,
@@ -26,22 +23,24 @@ const App = () => {
     received_messages: [],
     last_online: "",
   });
-  const [currUserMessages, setCurrUserMessages] = useState([]);
-  const [messagesToDisplay, setMessagesToDisplay] = useState([]);
+
   const [users, setUsers] = useState([]);
   const [chatWith, setChatWith] = useState();
-  // const [sortedMessagesToDisplay, setSortedMessagesToDisplay] =
-  //   useState(messagesToDisplay);
-  const getUserInfo = (id) =>
-    users.find((thisUser) => thisUser?.user_id === id);
+  const [currUserMessages, setCurrUserMessages] = useState([]);
+  const [messagesToDisplay, setMessagesToDisplay] = useState([]);
 
   // useEffect(() => {
-  //   setSortedMessagesToDisplay(
-  //     [...messagesToDisplay]
-  //   );
-  // }, [messagesToDisplay]);
-
-  // console.log({ messagesToDisplay, sortedMessagesToDisplay });
+  //   window.addEventListener("unload", (e) => {
+  //     e.preventDefault();
+  //     logoutUser();
+  //   });
+  //   return () => {
+  //     window.removeEventListener("unload", (e) => {
+  //       e.preventDefault();
+  //       logoutUser();
+  //     });
+  //   };
+  // });
 
   useEffect(() => {
     onValue(ref(db), (snapshot) => {
@@ -49,10 +48,10 @@ const App = () => {
       setCurrUserMessages([]);
       const data = snapshot.val();
       if (data !== null) {
-        Object.values(data.users || {}).map((thisUser) => {
+        Object.values(data.users || {}).forEach((thisUser) => {
           setUsers((prevUsers) => [...prevUsers, thisUser]);
         });
-        Object.values(data.messages || {}).map((thisUserMessage) => {
+        Object.values(data.messages || {}).forEach((thisUserMessage) => {
           setCurrUserMessages((prevUserMessages) => [
             ...prevUserMessages,
             thisUserMessage,
@@ -76,40 +75,38 @@ const App = () => {
             { ...message, is_received: msgReceived },
           ]);
         }
-        if (message.to === user?.user_id) {
-          if (message.from === chatWith) {
-            update(
-              ref(db, `/messages/${[user?.user_id, chatWith].sort().join("")}`),
-              {
-                [key]: {
-                  ...message,
-                  status: "read",
-                },
-              }
-            );
-          }
-        } else {
-          if (
-            getUserInfo(message?.to)?.is_online &&
-            message?.status === "sent"
-          ) {
-            update(
-              ref(
-                db,
-                `/messages/${[message?.to, message?.from].sort().join("")}`
-              ),
-              {
-                [key]: {
-                  ...message,
-                  status: "delivered",
-                },
-              }
-            );
-          }
+        if (message.to === user?.user_id && message.from === chatWith) {
+          update(
+            ref(db, `/messages/${[user?.user_id, chatWith].sort().join("")}`),
+            {
+              [key]: {
+                ...message,
+                status: "read",
+              },
+            }
+          );
+        }
+        if (
+          message.from !== chatWith &&
+          findObjectByID(users, message?.to)?.is_online &&
+          message?.status === "sent"
+        ) {
+          update(
+            ref(
+              db,
+              `/messages/${[message?.to, message?.from].sort().join("")}`
+            ),
+            {
+              [key]: {
+                ...message,
+                status: "delivered",
+              },
+            }
+          );
         }
       });
     });
-  }, [currUserMessages, chatWith, user?.user_id]);
+  }, [currUserMessages, chatWith, user?.user_id, users]);
 
   useEffect(() => {
     if (user.user_id) {
@@ -123,44 +120,41 @@ const App = () => {
   }, [users, user.user_id]);
 
   const loginUser = ({ user_id }) => {
-    const doesUserExists = !!users?.filter((user) => user.user_id === user_id)
-      .length;
-    if (doesUserExists) {
-      update(ref(db, `/users/${user_id}`), { is_online: true })
-        .then(() => {
-          const existingUserData = users?.find(
-            (thisUser) => thisUser?.user_id === user_id
-          );
-          setUser({
-            ...existingUserData,
-            is_online: true,
-            last_online: new Date(),
-          });
+    const doesUserExists = !!findObjectByID(users, user_id);
+    doesUserExists
+      ? update(ref(db, `/users/${user_id}`), { is_online: true })
+          .then(() => {
+            const existingUserData = users?.find(
+              (thisUser) => thisUser?.user_id === user_id
+            );
+            setUser({
+              ...existingUserData,
+              is_online: true,
+              last_online: new Date(),
+            });
+          })
+          .catch((err) => {
+            console.log("Error:", err);
+          })
+      : set(ref(db, `/users/${user_id}`), {
+          user_id,
+          is_online: true,
+          sent_messages: [],
+          received_messages: [],
+          last_online: new Date(),
         })
-        .catch((err) => {
-          console.log("Error:", err);
-        });
-    } else {
-      set(ref(db, `/users/${user_id}`), {
-        user_id,
-        is_online: true,
-        sent_messages: [],
-        received_messages: [],
-        last_online: new Date(),
-      })
-        .then(() => {
-          setUser({
-            user_id,
-            is_online: true,
-            sent_messages: [],
-            received_messages: [],
-            last_online: new Date(),
+          .then(() => {
+            setUser({
+              user_id,
+              is_online: true,
+              sent_messages: [],
+              received_messages: [],
+              last_online: new Date(),
+            });
+          })
+          .catch((err) => {
+            console.log("Error:", err);
           });
-        })
-        .catch((err) => {
-          console.log("Error:", err);
-        });
-    }
   };
 
   const logoutUser = () => {
@@ -188,16 +182,13 @@ const App = () => {
       console.log("Message or Receiver info missing");
       return;
     }
-    const uid = uuid();
     const newMessageRef = push(
       query(
         ref(db, `/messages/${[user?.user_id, chatWith].sort().join("")}`),
         orderByChild("timestamp")
       )
     );
-
     set(newMessageRef, {
-      msgid: uid,
       to: chatWith,
       from: user?.user_id,
       content: message_to_send,
@@ -206,30 +197,25 @@ const App = () => {
     });
   };
 
-  return (
-    <div className="grid place-content-center h-screen">
-      {user.is_online ? (
-        <div id="user_view">
-          <div className="flex gap-2 w-screen h-screen p-16">
-            <div className="w-3/12 ">
-              <UserInfo
-                user={user}
-                logoutUser={logoutUser}
-                setChatWith={setChatWith}
-              />
-              <ActiveUser users={users} user={user} setChatWith={setChatWith} />
-            </div>
-            <ChatSection
-              sendMessage={sendMessage}
-              chatWith={chatWith}
-              messagesToDisplay={messagesToDisplay}
-            />
-          </div>
-        </div>
-      ) : (
-        <LoginView loginUser={loginUser} />
-      )}
+  return user.is_online ? (
+    <div
+      id="user_view"
+      className="flex gap-2 w-screen h-screen p-16 rounded-md"
+    >
+      <div className="w-3/12">
+        <UserInfo user={user} logoutUser={logoutUser} />
+        <ActiveUser users={users} user={user} setChatWith={setChatWith} />
+      </div>
+      <div className="w-9/12">
+        <ChatSection
+          sendMessage={sendMessage}
+          chatWith={chatWith}
+          messagesToDisplay={messagesToDisplay}
+        />
+      </div>
     </div>
+  ) : (
+    <LoginView loginUser={loginUser} />
   );
 };
 
